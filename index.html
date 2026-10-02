@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="utf-8">
+    <title>Lazio 3D Storm Tracker - Advanced Suite</title>
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+    <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
+    <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+    <style>
+        body { margin: 0; padding: 0; font-family: sans-serif; background: #111; color: #fff; }
+        #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+        .map-overlay {
+            position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.88);
+            padding: 12px; border-radius: 8px; z-index: 10; border: 1px solid #444;
+        }
+        h1 { font-size: 14px; margin: 0 0 5px 0; color: #4da6ff; }
+        p { font-size: 11px; margin: 0; color: #aaa; }
+        .maplibregl-popup-content { 
+            background: #222; color: #fff; border-radius: 6px; border: 1px solid #555; 
+            font-size: 11px; line-height: 1.4; max-width: 260px; 
+        }
+        .maplibregl-popup-content h3 { margin: 0 0 6px 0; color: #ff4d4d; font-size: 13px; border-bottom: 1px solid #444; padding-bottom: 4px; }
+        .param-highlight { color: #00d2ff; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="map-overlay">
+    <h1>Lazio 3D Storm Tracker</h1>
+    <p>Suite Avanzata: ET, VIL, QPE, Lightning, Lifecycle</p>
+</div>
+
+<div id="map"></div>
+
+<script>
+    const map = new maplibregl.Map({
+        container: 'map',
+        style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/json',
+        center: [12.8, 41.9],
+        zoom: 8.5,
+        pitch: 55,
+        bearing: -15
+    });
+
+    map.on('load', () => {
+        map.addSource('terrainSource', {
+            'type': 'raster-dem',
+            'tiles': ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
+            'tileSize': 256,
+            'maxzoom': 14
+        });
+        map.setTerrain({ 'source': 'terrainSource', 'exaggeration': 1.5 });
+
+        map.addSource('radar-data', {
+            'type': 'geojson',
+            'data': 'cells.geojson?t=' + new Date().getTime()
+        });
+
+        map.addLayer({
+            'id': 'cell-volumes',
+            'type': 'fill-extrusion',
+            'source': 'radar-data',
+            'filter': ['==', '$type', 'Polygon'],
+            'paint': {
+                'fill-extrusion-color': ['match', ['get', 'intensity'], 'Intensa', '#ff3333', '#ff9900'],
+                'fill-extrusion-height': ['get', 'height'],
+                'fill-extrusion-base': 0,
+                'fill-extrusion-opacity': 0.75
+            }
+        });
+
+        map.addLayer({
+            'id': 'actual-path-layer',
+            'type': 'line',
+            'source': 'radar-data',
+            'filter': ['==', ['get', 'type'], 'actual_path'],
+            'paint': { 'line-color': '#00d2ff', 'line-width': 4, 'line-opacity': 0.8 }
+        });
+
+        map.addLayer({
+            'id': 'forecast-path-layer',
+            'type': 'line',
+            'source': 'radar-data',
+            'filter': ['==', ['get', 'type'], 'forecast_path'],
+            'paint': { 'line-color': '#ff2a2a', 'line-width': 3, 'line-dasharray': [2, 2], 'line-opacity': 0.9 }
+        });
+
+        map.addLayer({
+            'id': 'centroids-layer',
+            'type': 'circle',
+            'source': 'radar-data',
+            'filter': ['==', ['get', 'type'], 'centroid'],
+            'paint': {
+                'circle-radius': 6,
+                'circle-color': '#ffffff',
+                'circle-stroke-width': 2,
+                'circle-stroke-color': '#ff2a2a'
+            }
+        });
+
+        map.on('click', ['cell-volumes', 'centroids-layer'], (e) => {
+            const props = e.features[0].properties;
+            const coordinates = e.lngLat;
+
+            const htmlContent = `
+                <h3>${props.id} (${props.intensity})</h3>
+                <b>Stadio:</b> <span class="param-highlight">${props.lifecycle}</span><br>
+                <b>Dinamica:</b> ${props.motion}<br>
+                <b>Velocità:</b> ${props.speed_kmh} km/h<br>
+                <b>Echo Top (ET):</b> ${props.echo_top}<br>
+                <b>VIL (Acqua Liquida):</b> ${props.vil}<br>
+                <b>QPE (Rain Rate):</b> ${props.qpe}<br>
+                <b>Flash Rate (Fulmini):</b> ${props.flash_rate}<br>
+                <b>VIS (Tilt):</b> ${props.vis}<br>
+                <b>ETA Target:</b> ${props.eta}<br>
+                <b>CEP (Incertezza):</b> ± ${props.cep_km} km
+            `;
+
+            new maplibregl.Popup()
+                .setLngLat(coordinates)
+                .setHTML(htmlContent)
+                .addTo(map);
+        });
+
+        map.on('mouseenter', 'centroids-layer', () => map.getCanvas().style.cursor = 'pointer');
+        map.on('mouseleave', 'centroids-layer', () => map.getCanvas().style.cursor = '');
+    });
+
+    setInterval(() => {
+        const source = map.getSource('radar-data');
+        if (source) {
+            source.setData('cells.geojson?t=' + new Date().getTime());
+        }
+    }, 120000);
+</script>
+
+</body>
+</html>
