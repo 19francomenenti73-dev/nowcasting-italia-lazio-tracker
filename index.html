@@ -1,138 +1,138 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-    <meta charset="utf-8">
-    <title>Lazio 3D Storm Tracker - Advanced Suite</title>
-    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+    <meta charset="utf-8" />
+    <title>Lazio 3D Storm Tracker</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- MapLibre GL JS CSS -->
     <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
-    <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
     <style>
-        body { margin: 0; padding: 0; font-family: sans-serif; background: #111; color: #fff; }
-        #map { position: absolute; top: 0; bottom: 0; width: 100%; }
-        .map-overlay {
-            position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.88);
-            padding: 12px; border-radius: 8px; z-index: 10; border: 1px solid #444;
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #0b0b0b;
+            font-family: Arial, sans-serif;
+            color: #fff;
         }
-        h1 { font-size: 14px; margin: 0 0 5px 0; color: #4da6ff; }
-        p { font-size: 11px; margin: 0; color: #aaa; }
-        .maplibregl-popup-content { 
-            background: #222; color: #fff; border-radius: 6px; border: 1px solid #555; 
-            font-size: 11px; line-height: 1.4; max-width: 260px; 
+        #map {
+            width: 100%;
+            height: 650px; /* Altezza fissa ideale per l'incorporamento via iframe */
         }
-        .maplibregl-popup-content h3 { margin: 0 0 6px 0; color: #ff4d4d; font-size: 13px; border-bottom: 1px solid #444; padding-bottom: 4px; }
-        .param-highlight { color: #00d2ff; font-weight: bold; }
+        .maplibregl-popup-content {
+            background: rgba(20, 20, 20, 0.95);
+            color: #fff;
+            border-radius: 6px;
+            padding: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.6);
+            font-size: 13px;
+            line-height: 1.4;
+        }
+        .maplibregl-popup-anchor-top .maplibregl-popup-tip { border-bottom-color: rgba(20, 20, 20, 0.95); }
+        .maplibregl-popup-anchor-bottom .maplibregl-popup-tip { border-top-color: rgba(20, 20, 20, 0.95); }
     </style>
 </head>
 <body>
 
-<div class="map-overlay">
-    <h1>Lazio 3D Storm Tracker</h1>
-    <p>Suite Avanzata: ET, VIL, QPE, Lightning, Lifecycle</p>
-</div>
+    <div id="map"></div>
 
-<div id="map"></div>
-
-<script>
-    const map = new maplibregl.Map({
-        container: 'map',
-        style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/json',
-        center: [12.8, 41.9],
-        zoom: 8.5,
-        pitch: 55,
-        bearing: -15
-    });
-
-    map.on('load', () => {
-        map.addSource('terrainSource', {
-            'type': 'raster-dem',
-            'tiles': ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
-            'tileSize': 256,
-            'maxzoom': 14
-        });
-        map.setTerrain({ 'source': 'terrainSource', 'exaggeration': 1.5 });
-
-        map.addSource('radar-data', {
-            'type': 'geojson',
-            'data': 'cells.geojson?t=' + new Date().getTime()
-        });
-
-        map.addLayer({
-            'id': 'cell-volumes',
-            'type': 'fill-extrusion',
-            'source': 'radar-data',
-            'filter': ['==', '$type', 'Polygon'],
-            'paint': {
-                'fill-extrusion-color': ['match', ['get', 'intensity'], 'Intensa', '#ff3333', '#ff9900'],
-                'fill-extrusion-height': ['get', 'height'],
-                'fill-extrusion-base': 0,
-                'fill-extrusion-opacity': 0.75
-            }
-        });
-
-        map.addLayer({
-            'id': 'actual-path-layer',
-            'type': 'line',
-            'source': 'radar-data',
-            'filter': ['==', ['get', 'type'], 'actual_path'],
-            'paint': { 'line-color': '#00d2ff', 'line-width': 4, 'line-opacity': 0.8 }
+    <!-- MapLibre GL JS Script -->
+    <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+    <script>
+        const map = new maplibregl.Map({
+            container: 'map',
+            style: {
+                version: 8,
+                sources: {
+                    'raster-tiles': {
+                        type: 'raster',
+                        tiles: [
+                            'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
+                        ],
+                        tileSize: 256,
+                        attribution: '&copy; OpenStreetMap Contributors'
+                    },
+                    'terrain-source': {
+                        type: 'raster-dem',
+                        tiles: [
+                            'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'
+                        ],
+                        tileSize: 256,
+                        maxzoom: 15
+                    }
+                },
+                layers: [
+                    {
+                        id: 'simple-tile',
+                        type: 'raster',
+                        source: 'raster-tiles',
+                        minzoom: 0,
+                        maxzoom: 22
+                    }
+                ],
+                terrain: {
+                    source: 'terrain-source',
+                    exaggeration: 1.5
+                }
+            },
+            center: [12.5674, 41.9028], // Centro approssimativo Lazio / Roma
+            zoom: 8,
+            pitch: 45,
+            bearing: -15
         });
 
-        map.addLayer({
-            'id': 'forecast-path-layer',
-            'type': 'line',
-            'source': 'radar-data',
-            'filter': ['==', ['get', 'type'], 'forecast_path'],
-            'paint': { 'line-color': '#ff2a2a', 'line-width': 3, 'line-dasharray': [2, 2], 'line-opacity': 0.9 }
+        map.on('load', () => {
+            // Aggiunta sorgente dati GeoJSON generati dal backend Python
+            map.addSource('cells', {
+                type: 'geojson',
+                data: 'cells.geojson'
+            });
+
+            // Layer 3D per le celle temporalesche
+            map.addLayer({
+                id: 'cells-extrusion',
+                type: 'fill-extrusion',
+                source: 'cells',
+                paint: {
+                    'fill-extrusion-color': ['get', 'color'],
+                    'fill-extrusion-height': ['get', 'height'],
+                    'fill-extrusion-base': 0,
+                    'fill-extrusion-opacity': 0.85
+                }
+            });
+
+            // Gestione click per i popup con i parametri diagnostici
+            map.on('click', 'cells-extrusion', (e) => {
+                const props = e.features[0].properties;
+                const html = `
+                    <strong><b>ID Cella:</b> ${props.id || 'N/D'}</strong><br>
+                    <b>Stadio (Lifecycle):</b> ${props.lifecycle || 'N/D'}<br>
+                    <b>Echo Top (ET):</b> ${props.et || 'N/D'} km<br>
+                    <b>VIL:</b> ${props.vil || 'N/D'} kg/m²<br>
+                    <b>QPE (Rain Rate):</b> ${props.qpe || 'N/D'} mm/h<br>
+                    <b>Flash Rate Proxy:</b> ${props.flash_rate || 'N/D'} fl/min<br>
+                    <b>ETA Roma:</b> ${props.eta_rome || 'N/D'} min<br>
+                    <b>CEP (Incertezza):</b> ${props.cep || 'N/D'} km
+                `;
+                new maplibregl.Popup()
+                    .setLngLat(e.lngLat)
+                    .setHTML(html)
+                    .addTo(map);
+            });
+
+            map.on('mouseenter', 'cells-extrusion', () => {
+                map.getCanvas().style.cursor = 'pointer';
+            });
+            map.on('mouseleave', 'cells-extrusion', () => {
+                map.getCanvas().style.cursor = '';
+            });
         });
 
-        map.addLayer({
-            'id': 'centroids-layer',
-            'type': 'circle',
-            'source': 'radar-data',
-            'filter': ['==', ['get', 'type'], 'centroid'],
-            'paint': {
-                'circle-radius': 6,
-                'circle-color': '#ffffff',
-                'circle-stroke-width': 2,
-                'circle-stroke-color': '#ff2a2a'
-            }
-        });
-
-        map.on('click', ['cell-volumes', 'centroids-layer'], (e) => {
-            const props = e.features[0].properties;
-            const coordinates = e.lngLat;
-
-            const htmlContent = `
-                <h3>${props.id} (${props.intensity})</h3>
-                <b>Stadio:</b> <span class="param-highlight">${props.lifecycle}</span><br>
-                <b>Dinamica:</b> ${props.motion}<br>
-                <b>Velocità:</b> ${props.speed_kmh} km/h<br>
-                <b>Echo Top (ET):</b> ${props.echo_top}<br>
-                <b>VIL (Acqua Liquida):</b> ${props.vil}<br>
-                <b>QPE (Rain Rate):</b> ${props.qpe}<br>
-                <b>Flash Rate (Fulmini):</b> ${props.flash_rate}<br>
-                <b>VIS (Tilt):</b> ${props.vis}<br>
-                <b>ETA Target:</b> ${props.eta}<br>
-                <b>CEP (Incertezza):</b> ± ${props.cep_km} km
-            `;
-
-            new maplibregl.Popup()
-                .setLngLat(coordinates)
-                .setHTML(htmlContent)
-                .addTo(map);
-        });
-
-        map.on('mouseenter', 'centroids-layer', () => map.getCanvas().style.cursor = 'pointer');
-        map.on('mouseleave', 'centroids-layer', () => map.getCanvas().style.cursor = '');
-    });
-
-    setInterval(() => {
-        const source = map.getSource('radar-data');
-        if (source) {
-            source.setData('cells.geojson?t=' + new Date().getTime());
-        }
-    }, 120000);
-</script>
-
+        // Forza il ridimensionamento della mappa per renderizzarla correttamente dentro i contesti iframe
+        setTimeout(() => {
+            map.resize();
+        }, 400);
+    </script>
 </body>
 </html>
