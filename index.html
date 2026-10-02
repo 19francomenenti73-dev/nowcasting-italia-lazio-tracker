@@ -18,7 +18,7 @@
         }
         #map {
             width: 100%;
-            height: 650px; /* Altezza fissa ideale per l'incorporamento via iframe */
+            height: 650px; /* Perfetto per l'iframe di Google Sites */
         }
         .maplibregl-popup-content {
             background: rgba(20, 20, 20, 0.95);
@@ -52,14 +52,6 @@
                         ],
                         tileSize: 256,
                         attribution: '&copy; OpenStreetMap Contributors'
-                    },
-                    'terrain-source': {
-                        type: 'raster-dem',
-                        tiles: [
-                            'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'
-                        ],
-                        tileSize: 256,
-                        maxzoom: 15
                     }
                 },
                 layers: [
@@ -70,26 +62,22 @@
                         minzoom: 0,
                         maxzoom: 22
                     }
-                ],
-                terrain: {
-                    source: 'terrain-source',
-                    exaggeration: 1.5
-                }
+                ]
             },
-            center: [12.5674, 41.9028], // Centro approssimativo Lazio / Roma
+            center: [12.5674, 41.9028], // Centro Lazio / Roma
             zoom: 8,
-            pitch: 45,
-            bearing: -15
+            pitch: 30, // Inclinazione moderata e pulita
+            bearing: 0
         });
 
         map.on('load', () => {
-            // Aggiunta sorgente dati GeoJSON generati dal backend Python
+            // Sorgente dati GeoJSON generata dal backend Python
             map.addSource('cells', {
                 type: 'geojson',
                 data: 'cells.geojson'
             });
 
-            // Layer 3D per le celle temporalesche
+            // Layer 3D per le celle temporalesche (volumi estrusi)
             map.addLayer({
                 id: 'cells-extrusion',
                 type: 'fill-extrusion',
@@ -102,7 +90,7 @@
                 }
             });
 
-            // Gestione click per i popup con i parametri diagnostici
+            // Gestione click sui popup diagnostici
             map.on('click', 'cells-extrusion', (e) => {
                 const props = e.features[0].properties;
                 const html = `
@@ -129,7 +117,7 @@
             });
         });
 
-        // Forza il ridimensionamento della mappa per renderizzarla correttamente dentro i contesti iframe
+        // Forza il ridimensionamento per l'incorporamento via iframe
         setTimeout(() => {
             map.resize();
         }, 400);
