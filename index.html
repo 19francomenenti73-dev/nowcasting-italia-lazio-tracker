@@ -1,126 +1,121 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-    <meta charset="utf-8" />
-    <title>Lazio 3D Storm Tracker</title>
+    <meta charset="utf-8">
+    <title>Nowcasting Italia - Lazio 3D Storm Tracker</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
     <!-- MapLibre GL JS CSS -->
     <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
+    
     <style>
         body, html {
             margin: 0;
             padding: 0;
             width: 100%;
             height: 100%;
-            background-color: #0b0b0b;
+            overflow: hidden;
             font-family: Arial, sans-serif;
-            color: #fff;
         }
         #map {
             width: 100%;
-            height: 650px; /* Perfetto per l'iframe di Google Sites */
+            height: 100%;
         }
+        /* Stile personalizzato per il popup scuro */
         .maplibregl-popup-content {
-            background: rgba(20, 20, 20, 0.95);
-            color: #fff;
+            background: #1a1a1a !important;
+            color: #ffffff !important;
             border-radius: 6px;
-            padding: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.6);
-            font-size: 13px;
-            line-height: 1.4;
+            padding: 10px 14px;
+            font-size: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
         }
-        .maplibregl-popup-anchor-top .maplibregl-popup-tip { border-bottom-color: rgba(20, 20, 20, 0.95); }
-        .maplibregl-popup-anchor-bottom .maplibregl-popup-tip { border-top-color: rgba(20, 20, 20, 0.95); }
+        .maplibregl-popup-anchor-top .maplibregl-popup-tip { border-bottom-color: #1a1a1a !important; }
+        .maplibregl-popup-anchor-bottom .maplibregl-popup-tip { border-top-color: #1a1a1a !important; }
+        .maplibregl-popup-anchor-left .maplibregl-popup-tip { border-right-color: #1a1a1a !important; }
+        .maplibregl-popup-anchor-right .maplibregl-popup-tip { border-left-color: #1a1a1a !important; }
+        .maplibregl-popup-close-button {
+            color: #aaa;
+        }
     </style>
 </head>
 <body>
 
     <div id="map"></div>
 
-    <!-- MapLibre GL JS Script -->
+    <!-- MapLibre GL JS Library -->
     <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+    
     <script>
+        // Inizializzazione della mappa centrata sul Lazio
         const map = new maplibregl.Map({
             container: 'map',
-            style: {
-                version: 8,
-                sources: {
-                    'raster-tiles': {
-                        type: 'raster',
-                        tiles: [
-                            'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
-                        ],
-                        tileSize: 256,
-                        attribution: '&copy; OpenStreetMap Contributors'
-                    }
-                },
-                layers: [
-                    {
-                        id: 'simple-tile',
-                        type: 'raster',
-                        source: 'raster-tiles',
-                        minzoom: 0,
-                        maxzoom: 22
-                    }
-                ]
-            },
-            center: [12.5674, 41.9028], // Centro Lazio / Roma
+            style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json', // Stile chiaro e pulito
+            center: [12.5674, 41.9028], // Roma / Lazio
             zoom: 8,
-            pitch: 30, // Inclinazione moderata e pulita
+            pitch: 0, // Vista pulita in pianta o leggera inclinazione se desiderata
             bearing: 0
         });
 
         map.on('load', () => {
-            // Sorgente dati GeoJSON generata dal backend Python
+            // Aggiunta della sorgente dati GeoJSON live
             map.addSource('cells', {
                 type: 'geojson',
                 data: 'cells.geojson'
             });
 
-            // Layer 3D per le celle temporalesche (volumi estrusi)
+            // Aggiunta del layer circolare sfumato (Effetto nucleo / massa nuvolosa vaporosa)
             map.addLayer({
-                id: 'cells-extrusion',
-                type: 'fill-extrusion',
+                id: 'storm-cells-vapor',
+                type: 'circle',
                 source: 'cells',
                 paint: {
-                    'fill-extrusion-color': ['get', 'color'],
-                    'fill-extrusion-height': ['get', 'height'],
-                    'fill-extrusion-base': 0,
-                    'fill-extrusion-opacity': 0.85
+                    // Dimensione dinamica basata sul VIL o un valore di default
+                    'circle-radius': [
+                        'interpolate', ['linear'], ['zoom'],
+                        8, ['/', ['coalesce', ['get', 'VIL'], 50], 3],
+                        12, ['/', ['coalesce', ['get', 'VIL'], 50], 1.5]
+                    ],
+                    // Colore guidato dalla proprietà 'color' del GeoJSON
+                    'circle-color': ['coalesce', ['get', 'color'], '#ff3b30'],
+                    // Elevata sfumatura per dare l'effetto massa nuvolosa morbida
+                    'circle-blur': 0.7,
+                    'circle-opacity': 0.85
                 }
             });
 
-            // Gestione click sui popup diagnostici
-            map.on('click', 'cells-extrusion', (e) => {
+            // Interazione al click sulle celle per mostrare il popup tecnico
+            map.on('click', 'storm-cells-vapor', (e) => {
                 const props = e.features[0].properties;
-                const html = `
-                    <strong><b>ID Cella:</b> ${props.id || 'N/D'}</strong><br>
-                    <b>Stadio (Lifecycle):</b> ${props.lifecycle || 'N/D'}<br>
-                    <b>Echo Top (ET):</b> ${props.et || 'N/D'} km<br>
-                    <b>VIL:</b> ${props.vil || 'N/D'} kg/m²<br>
-                    <b>QPE (Rain Rate):</b> ${props.qpe || 'N/D'} mm/h<br>
-                    <b>Flash Rate Proxy:</b> ${props.flash_rate || 'N/D'} fl/min<br>
-                    <b>ETA Roma:</b> ${props.eta_rome || 'N/D'} min<br>
-                    <b>CEP (Incertezza):</b> ${props.cep || 'N/D'} km
+                const coordinates = e.features[0].geometry.coordinates.slice();
+
+                // Costruzione del testo del popup con i parametri della cella
+                const content = `
+                    <strong>ID Cella:</strong> ${props.id || 'N/A'} | 
+                    <strong>Stadio:</strong> ${props.stadio || 'N/A'} | 
+                    <strong>Echo Top (ET):</strong> ${props.et || 'N/A'} km | 
+                    <strong>VIL:</strong> ${props.vil || 'N/A'} kg/m² | 
+                    <strong>OPE (Rain Rate):</strong> ${props.ope || 'N/A'} mm/h | 
+                    <strong>Flash Rate:</strong> ${props.flash_rate || 'N/A'} | 
+                    <strong>ETA Roma:</strong> ${props.eta_roma || 'N/A'} min | 
+                    <strong>CEP:</strong> ${props.cep || 'N/A'} km
                 `;
+
                 new maplibregl.Popup()
-                    .setLngLat(e.lngLat)
-                    .setHTML(html)
+                    .setLngLat(coordinates)
+                    .setHTML(content)
                     .addTo(map);
             });
 
-            map.on('mouseenter', 'cells-extrusion', () => {
+            // Cambia il cursore al passaggio sopra una cella attiva
+            map.on('mouseenter', 'storm-cells-vapor', () => {
                 map.getCanvas().style.cursor = 'pointer';
             });
-            map.on('mouseleave', 'cells-extrusion', () => {
+            map.on('mouseleave', 'storm-cells-vapor', () => {
                 map.getCanvas().style.cursor = '';
             });
         });
-
-        // Forza il ridimensionamento per l'incorporamento via iframe
-        setTimeout(() => {
-            map.resize();
-        }, 400);
     </script>
+
 </body>
 </html>
